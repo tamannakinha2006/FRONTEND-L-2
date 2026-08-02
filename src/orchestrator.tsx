@@ -130,7 +130,6 @@ export function useOrchestrator() {
     }
   };
 
-  // ✅ Verification Handlers
   const verifyOtp = async (missionId: string, otp: string) => {
     try {
       await api.verifyOtp(missionId, otp);
@@ -158,28 +157,28 @@ export function useOrchestrator() {
     }
   };
 
-  // Attack Simulations
-  const simulatePromptInjection = async () => {
+  // Attack simulations – now accept missionId to target the selected mission
+  const simulatePromptInjection = async (missionId?: string) => {
     try {
-      await api.simulatePromptInjection();
+      await api.simulatePromptInjection(missionId);
     } catch (error) {
       console.error('Failed to simulate prompt injection:', error);
       throw error;
     }
   };
 
-  const simulateStolenKey = async () => {
+  const simulateStolenKey = async (missionId?: string) => {
     try {
-      await api.simulateStolenKey();
+      await api.simulateStolenKey(missionId);
     } catch (error) {
       console.error('Failed to simulate stolen key:', error);
       throw error;
     }
   };
 
-  const launchSpamAttack = async () => {
+  const launchSpamAttack = async (missionId?: string) => {
     try {
-      await api.launchSpamAttack();
+      await api.launchSpamAttack(missionId);
     } catch (error) {
       console.error('Failed to launch spam attack:', error);
       throw error;

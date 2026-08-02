@@ -125,29 +125,30 @@ export async function approveVerification(missionId: string) {
   return handleResponse(response);
 }
 
-export async function simulatePromptInjection() {
+// Attacks – now accept optional missionId
+export async function simulatePromptInjection(missionId?: string) {
   const response = await fetch(`${API_BASE}/api/attacks/prompt-injection`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ missionId }),
   });
   return handleResponse(response);
 }
 
-export async function simulateStolenKey() {
+export async function simulateStolenKey(missionId?: string) {
   const response = await fetch(`${API_BASE}/api/attacks/stolen-key`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ missionId }),
   });
   return handleResponse(response);
 }
 
-export async function launchSpamAttack() {
+export async function launchSpamAttack(missionId?: string) {
   const response = await fetch(`${API_BASE}/api/attacks/spam`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ missionId }),
   });
   return handleResponse(response);
 }

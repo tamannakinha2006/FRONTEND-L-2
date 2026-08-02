@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   CreditCard,
@@ -65,21 +65,18 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
     cancelMission,
     unfreezeWallet,
     rotateSessionKey,
-  } = useOrchestrator(); // ✅ nukeWallet removed – not used here
+  } = useOrchestrator();
 
-  // Filter out nuked missions – they must disappear
-  const missions = useMemo(() => {
-    return (state.missions || []).filter(
-      (m: Mission) => m.status !== 'nuked'
-    );
-  }, [state.missions]);
+  const missions = useMemo(
+    () => (state.missions || []).filter((m: Mission) => m.status !== 'nuked'),
+    [state.missions]
+  );
 
   const selectedId = state.selectedMissionId;
 
   const latestId = useMemo(() => {
     if (missions.length === 0) return null;
-    const latest = missions.reduce((a, b) => (a.createdAt > b.createdAt ? a : b));
-    return latest.id;
+    return missions.reduce((a, b) => (a.createdAt > b.createdAt ? a : b)).id;
   }, [missions]);
 
   const focusedId = useMemo(() => {
@@ -87,19 +84,22 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
     return latestId;
   }, [selectedId, latestId, missions]);
 
-  // If the focused mission disappears (nuked), clear focus
+  // Prevent infinite loops
+  const prevFocusedIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (focusedId !== prevFocusedIdRef.current) {
+      prevFocusedIdRef.current = focusedId;
+      if (focusedId !== selectedId) {
+        dispatch({ type: 'SELECT_MISSION', payload: focusedId });
+      }
+    }
+  }, [focusedId, selectedId, dispatch]);
+
   useEffect(() => {
     if (focusedId && !missions.some(m => m.id === focusedId)) {
       dispatch({ type: 'SELECT_MISSION', payload: null });
     }
   }, [focusedId, missions, dispatch]);
-
-  // Keep global selectedMissionId in sync
-  useEffect(() => {
-    if (focusedId && focusedId !== selectedId) {
-      dispatch({ type: 'SELECT_MISSION', payload: focusedId });
-    }
-  }, [focusedId, selectedId, dispatch]);
 
   const focusedMission = focusedId ? missions.find(m => m.id === focusedId) : null;
   const pocketMissions = missions.filter(m => m.id !== focusedId);
@@ -111,7 +111,6 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
 
   return (
     <div className="flex flex-col gap-3 p-4 overflow-y-auto max-h-full">
-      {/* Pocket list for older missions */}
       {pocketMissions.length > 0 && (
         <div className="flex flex-col gap-2">
           {pocketMissions.map(m => (
@@ -124,7 +123,6 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
         </div>
       )}
 
-      {/* Full detail card for focused mission */}
       {focusedMission ? (
         <MissionDetail
           mission={focusedMission}
@@ -148,7 +146,7 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
 }
 
 // ---------------------------------------------------------------------------
-// Pocket card (collapsed view)
+// Pocket card
 // ---------------------------------------------------------------------------
 function MissionPocket({ mission, onClick }: { mission: Mission; onClick: () => void }) {
   return (
@@ -181,7 +179,7 @@ function MissionPocket({ mission, onClick }: { mission: Mission; onClick: () => 
 }
 
 // ---------------------------------------------------------------------------
-// Full detail card (expanded view)
+// Full detail card – with freeze overlay requiring key rotation each time
 // ---------------------------------------------------------------------------
 function MissionDetail({
   mission,
@@ -199,6 +197,14 @@ function MissionDetail({
   onViewPolicies: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [keysRotated, setKeysRotated] = useState(false);
+
+  // Reset key rotation flag whenever a new freeze happens
+  useEffect(() => {
+    if (mission.status === 'frozen') {
+      setKeysRotated(false);
+    }
+  }, [mission.status]);
 
   const policy = useMemo(() => {
     const cat = mission.category;
@@ -231,9 +237,7 @@ function MissionDetail({
       }, 1000);
       return () => clearInterval(interval);
     }
-    if (mission.status === 'completed') {
-      setLocalTimer(0);
-    }
+    if (mission.status === 'completed') setLocalTimer(0);
   }, [mission.status]);
 
   const isExecuting = mission.status === 'executing';
@@ -253,10 +257,7 @@ function MissionDetail({
     ? `${mission.sessionKey.slice(0, 6)}...${mission.sessionKey.slice(-4)}`
     : 'None';
 
-  const categoryMeta = mission.category
-    ? CATEGORY_META[mission.category]
-    : CATEGORY_META.general;
-
+  const categoryMeta = mission.category ? CATEGORY_META[mission.category] : CATEGORY_META.general;
   const formattedExpiry = new Date(mission.expiry).toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -264,6 +265,7 @@ function MissionDetail({
     minute: '2-digit',
   });
 
+  // Timer bar logic
   let displayTime = totalTime;
   let progress = 100;
   let timerStatusText = 'Awaiting execution clearance...';
@@ -282,7 +284,7 @@ function MissionDetail({
   } else if (isFrozen) {
     displayTime = localTimer;
     progress = (localTimer / totalTime) * 100;
-    timerStatusText = 'Time-lock PAUSED due to lockdown.';
+    timerStatusText = 'Time-lock PAUSED – system lockdown.';
     timerTheme = {
       border: 'border-error/50',
       bg: 'bg-error/10',
@@ -293,7 +295,7 @@ function MissionDetail({
   } else if (isCompleted) {
     displayTime = 0;
     progress = 100;
-    timerStatusText = 'Time-lock cleared. Funds securely released.';
+    timerStatusText = 'Time-lock cleared. Funds released.';
     timerTheme = {
       border: 'border-success/50',
       bg: 'bg-success/10',
@@ -322,6 +324,11 @@ function MissionDetail({
     );
   }, [mission.budget, mission.riskScore, policy]);
 
+  const handleRotateAndEnableUnfreeze = async () => {
+    await onRotateKey();
+    setKeysRotated(true);
+  };
+
   return (
     <div className="flex flex-col p-6 relative overflow-hidden bg-bg-secondary/40 rounded-xl">
       {isFrozen && (
@@ -331,21 +338,25 @@ function MissionDetail({
           </div>
           <h3 className="text-xl font-black text-white uppercase tracking-widest">System Locked Down</h3>
           <p className="text-[12px] font-medium text-ink-dim max-w-[300px] mt-2 mb-8">
-            Emergency override active. All transactions paused. If frozen for 20+ minutes, session keys
-            auto-destruct.
+            Emergency override active. Rotate session key first, then unfreeze.
           </p>
           <div className="flex w-full gap-3 max-w-[350px]">
             <button
-              onClick={onUnfreeze}
-              className="flex-1 flex justify-center items-center gap-2 rounded-xl bg-success/20 border border-success/40 text-success px-4 py-3.5 text-[13px] font-bold hover:bg-success/30 transition-all"
-            >
-              <Snowflake className="h-4 w-4" /> Unfreeze
-            </button>
-            <button
-              onClick={onRotateKey}
+              onClick={handleRotateAndEnableUnfreeze}
               className="flex-1 flex justify-center items-center gap-2 rounded-xl bg-gold/20 border border-gold/40 text-gold px-4 py-3.5 text-[13px] font-bold hover:bg-gold/30 transition-all"
             >
               <RefreshCw className="h-4 w-4" /> Rotate Key
+            </button>
+            <button
+              onClick={onUnfreeze}
+              disabled={!keysRotated}
+              className={`flex-1 flex justify-center items-center gap-2 rounded-xl bg-success/20 border border-success/40 px-4 py-3.5 text-[13px] font-bold transition-all ${
+                keysRotated
+                  ? 'text-success hover:bg-success/30'
+                  : 'text-ink-faint opacity-50 cursor-not-allowed'
+              }`}
+            >
+              <Snowflake className="h-4 w-4" /> Unfreeze
             </button>
           </div>
         </div>
@@ -385,7 +396,6 @@ function MissionDetail({
       {/* Merchant & Budget */}
       <div className="mt-6 grid grid-cols-2 gap-4">
         <Detail label="Target Merchant" value={mission.merchant} />
-
         <div className="rounded-xl border-2 border-gold/60 bg-gold/10 p-4 shadow-[0_0_25px_rgba(212,175,55,0.15)] relative overflow-hidden transition-all hover:border-gold">
           <div className="absolute top-0 right-0 bg-gold text-black text-[9px] font-black px-2.5 py-1 rounded-bl-lg uppercase tracking-widest">
             Escrowed
@@ -393,12 +403,10 @@ function MissionDetail({
           <div className="text-[10px] uppercase tracking-widest text-gold font-bold mb-1.5">Budget Locked</div>
           <div className="text-2xl font-black text-white">{formatINR(mission.budget ?? 0)}</div>
         </div>
-
         <Detail label="Capital Deployed" value={formatINR(mission.spent ?? 0)} />
         <Detail label="Session Expiry" value={formattedExpiry} />
       </div>
 
-      {/* Optional BaseScan link */}
       {mission.explorerUrl && (
         <div className="mt-3 flex items-center justify-end">
           <a
@@ -413,34 +421,25 @@ function MissionDetail({
         </div>
       )}
 
-      {/* Category & Vendors */}
       <div className="mt-5 flex flex-col gap-3">
         <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/40 p-4">
           <div className="flex items-center gap-4">
-            <div className="text-3xl drop-shadow-[0_0_10px_rgba(255,255,255,0.1)]">
-              {categoryMeta.icon}
-            </div>
+            <div className="text-3xl drop-shadow-[0_0_10px_rgba(255,255,255,0.1)]">{categoryMeta.icon}</div>
             <div>
-              <div className="text-[10px] uppercase tracking-widest text-ink-faint font-bold mb-1">
-                Authorized Scope
-              </div>
-              <div className="text-[15px] font-black text-white tracking-widest uppercase">
-                {categoryMeta.label}
-              </div>
+              <div className="text-[10px] uppercase tracking-widest text-ink-faint font-bold mb-1">Authorized Scope</div>
+              <div className="text-[15px] font-black text-white tracking-widest uppercase">{categoryMeta.label}</div>
             </div>
           </div>
           <div className="text-right flex flex-col items-end">
-            <div className="text-[10px] uppercase tracking-widest text-ink-faint font-bold mb-1.5">
-              Approved Vendors
-            </div>
+            <div className="text-[10px] uppercase tracking-widest text-ink-faint font-bold mb-1.5">Approved Vendors</div>
             <div className="flex flex-wrap justify-end gap-1.5 max-w-[180px]">
-              {policy.allowedVendors && policy.allowedVendors.length > 0 ? (
-                policy.allowedVendors.map((vendor: string) => (
+              {policy.allowedVendors?.length ? (
+                policy.allowedVendors.map((v: string) => (
                   <span
-                    key={vendor}
+                    key={v}
                     className="text-[9px] font-mono font-bold text-gold/90 bg-gold/10 border border-gold/20 px-1.5 py-0.5 rounded"
                   >
-                    {vendor}
+                    {v}
                   </span>
                 ))
               ) : (
@@ -452,20 +451,16 @@ function MissionDetail({
           </div>
         </div>
 
-        {/* Time-lock & Verification */}
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl border border-warning/20 bg-warning/5 p-3.5 flex items-center gap-3">
             <div className="h-8 w-8 rounded-full bg-warning/10 flex items-center justify-center border border-warning/20 text-warning">
               <Clock className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-widest text-warning/70 font-bold mb-0.5">
-                Execution Delay
-              </div>
+              <div className="text-[10px] uppercase tracking-widest text-warning/70 font-bold mb-0.5">Execution Delay</div>
               <div className="text-[12px] font-bold text-white">{totalTime}-Sec Time-Lock</div>
             </div>
           </div>
-
           <div
             className={`rounded-xl border ${
               verification?.level === 0
@@ -480,16 +475,14 @@ function MissionDetail({
               {verification?.level === 3 && <ShieldAlert className="h-4 w-4" />}
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-widest text-success/70 font-bold mb-0.5">
-                Verification Rule
-              </div>
+              <div className="text-[10px] uppercase tracking-widest text-success/70 font-bold mb-0.5">Verification Rule</div>
               <div className="text-[12px] font-bold text-white">{verification?.label || 'Auto-execute'}</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Time-lock progress bar */}
+      {/* Time-lock bar */}
       <div
         className={`mt-5 rounded-2xl border-2 ${timerTheme.border} ${timerTheme.bg} p-5 shadow-lg relative overflow-hidden transition-colors duration-500`}
       >
@@ -502,15 +495,12 @@ function MissionDetail({
                 Escrow Time-Lock
               </span>
             </div>
-            <span className={`text-[10px] font-medium ${timerTheme.text} opacity-80`}>
-              {timerStatusText}
-            </span>
+            <span className={`text-[10px] font-medium ${timerTheme.text} opacity-80`}>{timerStatusText}</span>
           </div>
           <span className={`text-3xl font-mono font-black ${timerTheme.text} tracking-tighter`}>
             00:{displayTime.toString().padStart(2, '0')}
           </span>
         </div>
-
         <div className="h-2.5 rounded-full bg-black/60 overflow-hidden relative z-10 shadow-inner">
           <motion.div
             className={`h-full ${timerTheme.fill}`}
@@ -592,7 +582,6 @@ function StatusBadge({ status }: { status: string }) {
     nuked: { bg: 'bg-error/20', text: 'text-error', border: 'border-error/50' },
   };
   const c = config[status] || config.idle;
-
   return (
     <div
       className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${c.bg} ${c.border} ${c.text}`}
