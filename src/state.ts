@@ -1,3 +1,5 @@
+// src/state.ts
+
 import type {
   AegisState,
   ShieldId,
@@ -25,21 +27,72 @@ export const SHIELD_ORDER: ShieldId[] = [
   'circuitBreaker',
 ];
 
-export const SHIELD_META: Record<ShieldId, { label: string; description: string }> = {
-  missionGuard: { label: 'Mission Guard', description: 'Validates mission intent against authorized scope.' },
-  policyEngine: { label: 'Policy Engine', description: 'Enforces spending limits, merchant allowlists & rules.' },
-  riskEngine: { label: 'Risk Engine', description: 'Scores transaction risk using behavioral models.' },
-  smartContract: { label: 'Smart Contract', description: 'On-chain escrow enforcing budget & expiry constraints.' },
-  timeLock: { label: 'Time Lock', description: 'Delay window before any irreversible action executes.' },
-  circuitBreaker: { label: 'Circuit Breaker', description: 'Halts all activity when anomaly threshold is breached.' },
+export const SHIELD_META: Record<
+  ShieldId,
+  { label: string; description: string }
+> = {
+  missionGuard: {
+    label: 'Mission Guard',
+    description: 'Validates mission intent against authorized scope.',
+  },
+  policyEngine: {
+    label: 'Policy Engine',
+    description: 'Enforces spending limits, merchant allowlists & rules.',
+  },
+  riskEngine: {
+    label: 'Risk Engine',
+    description: 'Scores transaction risk using behavioral models.',
+  },
+  smartContract: {
+    label: 'Smart Contract',
+    description: 'On-chain escrow enforcing budget & expiry constraints.',
+  },
+  timeLock: {
+    label: 'Time Lock',
+    description: 'Delay window before any irreversible action executes.',
+  },
+  circuitBreaker: {
+    label: 'Circuit Breaker',
+    description: 'Halts all activity when anomaly threshold is breached.',
+  },
 };
 
 export const DEFAULT_POLICIES: Policy[] = [
-  { id: 'p1', name: 'Max Spend Per Mission', description: 'No single mission may spend more than ₹1,00,000.', enabled: true, rule: 'mission.budget <= 100000' },
-  { id: 'p2', name: 'Merchant Allowlist', description: 'Only approved merchants may receive funds.', enabled: true, rule: 'merchant IN (AWS India, GitHub, Stripe India, IndiGo)' },
-  { id: 'p3', name: 'Session Expiry', description: 'Mission wallets expire after 24 hours.', enabled: true, rule: 'now < mission.expiry' },
-  { id: 'p4', name: 'Prompt Injection Defense', description: 'Blocks instructions that attempt to override policy.', enabled: false, rule: 'intent.signature == verified' },
-  { id: 'p5', name: 'Rate Limit', description: 'Maximum 10 transactions per mission per minute.', enabled: false, rule: 'tx.rate <= 10/min' },
+  {
+    id: 'p1',
+    name: 'Max Spend Per Mission',
+    description: 'No single mission may spend more than ₹1,00,000.',
+    enabled: true,
+    rule: 'mission.budget <= 100000',
+  },
+  {
+    id: 'p2',
+    name: 'Merchant Allowlist',
+    description: 'Only approved merchants may receive funds.',
+    enabled: true,
+    rule: 'merchant IN (AWS India, GitHub, Stripe India, IndiGo)',
+  },
+  {
+    id: 'p3',
+    name: 'Session Expiry',
+    description: 'Mission wallets expire after 24 hours.',
+    enabled: true,
+    rule: 'now < mission.expiry',
+  },
+  {
+    id: 'p4',
+    name: 'Prompt Injection Defense',
+    description: 'Blocks instructions that attempt to override policy.',
+    enabled: false,
+    rule: 'intent.signature == verified',
+  },
+  {
+    id: 'p5',
+    name: 'Rate Limit',
+    description: 'Maximum 10 transactions per mission per minute.',
+    enabled: false,
+    rule: 'tx.rate <= 10/min',
+  },
 ];
 
 const DEFAULT_PROFILE: EnterpriseProfile = {
@@ -49,7 +102,7 @@ const DEFAULT_PROFILE: EnterpriseProfile = {
   plan: 'Enterprise Sovereign',
   perMissionCap: 100000,
   dailyOutflowCeiling: 300000,
-  dailySpent: 50000,
+  dailySpent: 0,          // ✅ reset to zero
   highestSpend: 0,
 };
 
