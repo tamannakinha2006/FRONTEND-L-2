@@ -1,0 +1,208 @@
+import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import { initialState, reducer, type Action } from './state';
+import { initializeSocket, disconnectSocket } from './services/socket';
+import * as api from './services/api';
+import type { AegisState } from './types';
+
+type AegisContextType = {
+  state: AegisState;
+  dispatch: React.Dispatch<Action>;
+};
+
+const AegisContext = createContext<AegisContextType | undefined>(undefined);
+
+export function AegisProvider({ children }: { children: React.ReactNode }) {
+  const [state, dispatch] = useReducer(reducer, initialState());
+
+  useEffect(() => {
+    initializeSocket(dispatch);
+    return () => {
+      disconnectSocket();
+    };
+  }, []);
+
+  return (
+    <AegisContext.Provider value={{ state, dispatch }}>
+      {children}
+    </AegisContext.Provider>
+  );
+}
+
+export function useAegis() {
+  const context = useContext(AegisContext);
+  if (context === undefined) {
+    throw new Error('useAegis must be used within an AegisProvider');
+  }
+  return context;
+}
+
+export function useOrchestrator() {
+  const { state, dispatch } = useAegis();
+
+  const createMission = async (userPrompt: string) => {
+    try {
+      await api.createMission(userPrompt);
+    } catch (error) {
+      console.error('Failed to create mission:', error);
+      throw error;
+    }
+  };
+
+  const executeMission = async () => {
+    try {
+      await api.executeMission();
+    } catch (error) {
+      console.error('Failed to execute mission:', error);
+      throw error;
+    }
+  };
+
+  const cancelMission = async () => {
+    try {
+      await api.cancelMission();
+    } catch (error) {
+      console.error('Failed to cancel mission:', error);
+      throw error;
+    }
+  };
+
+  const freezeWallet = async () => {
+    try {
+      await api.freezeWallet();
+    } catch (error) {
+      console.error('Failed to freeze wallet:', error);
+      throw error;
+    }
+  };
+
+  const unfreezeWallet = async () => {
+    try {
+      await api.unfreezeWallet();
+    } catch (error) {
+      console.error('Failed to unfreeze wallet:', error);
+      throw error;
+    }
+  };
+
+  const nukeWallet = async () => {
+    try {
+      await api.nukeWallet();
+    } catch (error) {
+      console.error('Failed to nuke wallet:', error);
+      throw error;
+    }
+  };
+
+  const rotateSessionKey = async () => {
+    try {
+      await api.rotateSessionKey();
+    } catch (error) {
+      console.error('Failed to rotate session key:', error);
+      throw error;
+    }
+  };
+
+  const cancelPendingTx = async () => {
+    try {
+      await api.cancelPendingTx();
+    } catch (error) {
+      console.error('Failed to cancel pending transaction:', error);
+      throw error;
+    }
+  };
+
+  const togglePolicy = async (policyId: string) => {
+    try {
+      await api.togglePolicy(policyId);
+    } catch (error) {
+      console.error('Failed to toggle policy:', error);
+      throw error;
+    }
+  };
+
+  const resetDemo = async () => {
+    try {
+      await api.resetDemo();
+    } catch (error) {
+      console.error('Failed to reset demo:', error);
+      throw error;
+    }
+  };
+
+  // ✅ Verification Handlers
+  const verifyOtp = async (missionId: string, otp: string) => {
+    try {
+      await api.verifyOtp(missionId, otp);
+    } catch (error) {
+      console.error('Failed to verify OTP:', error);
+      throw error;
+    }
+  };
+
+  const rejectVerification = async (missionId: string) => {
+    try {
+      await api.rejectVerification(missionId);
+    } catch (error) {
+      console.error('Failed to reject verification:', error);
+      throw error;
+    }
+  };
+
+  const approveVerification = async (missionId: string) => {
+    try {
+      await api.approveVerification(missionId);
+    } catch (error) {
+      console.error('Failed to approve verification:', error);
+      throw error;
+    }
+  };
+
+  // Attack Simulations
+  const simulatePromptInjection = async () => {
+    try {
+      await api.simulatePromptInjection();
+    } catch (error) {
+      console.error('Failed to simulate prompt injection:', error);
+      throw error;
+    }
+  };
+
+  const simulateStolenKey = async () => {
+    try {
+      await api.simulateStolenKey();
+    } catch (error) {
+      console.error('Failed to simulate stolen key:', error);
+      throw error;
+    }
+  };
+
+  const launchSpamAttack = async () => {
+    try {
+      await api.launchSpamAttack();
+    } catch (error) {
+      console.error('Failed to launch spam attack:', error);
+      throw error;
+    }
+  };
+
+  return {
+    createMission,
+    executeMission,
+    cancelMission,
+    freezeWallet,
+    unfreezeWallet,
+    nukeWallet,
+    rotateSessionKey,
+    cancelPendingTx,
+    togglePolicy,
+    resetDemo,
+    verifyOtp,
+    rejectVerification,
+    approveVerification,  // ✅ NEW: exported for manual approval
+    simulatePromptInjection,
+    simulateStolenKey,
+    launchSpamAttack,
+    state,
+    dispatch,
+  };
+}

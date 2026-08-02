@@ -1,0 +1,155 @@
+const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+
+async function handleResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(error.error || error.message || `HTTP error ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function createMission(userPrompt: string) {
+  const response = await fetch(`${API_BASE}/api/missions/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: userPrompt }),
+  });
+  return handleResponse(response);
+}
+
+export async function executeMission() {
+  const response = await fetch(`${API_BASE}/api/missions/execute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  return handleResponse(response);
+}
+
+export async function cancelMission() {
+  const response = await fetch(`${API_BASE}/api/missions/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  return handleResponse(response);
+}
+
+export async function freezeWallet() {
+  const response = await fetch(`${API_BASE}/api/missions/freeze`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  return handleResponse(response);
+}
+
+export async function unfreezeWallet() {
+  const response = await fetch(`${API_BASE}/api/missions/unfreeze`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  return handleResponse(response);
+}
+
+export async function nukeWallet() {
+  const response = await fetch(`${API_BASE}/api/missions/nuke`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  return handleResponse(response);
+}
+
+export async function rotateSessionKey() {
+  const response = await fetch(`${API_BASE}/api/missions/rotate-key`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  return handleResponse(response);
+}
+
+export async function cancelPendingTx() {
+  const response = await fetch(`${API_BASE}/api/missions/cancel-pending`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  return handleResponse(response);
+}
+
+export async function togglePolicy(policyId: string) {
+  const response = await fetch(`${API_BASE}/api/missions/toggle-policy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ policyId }),
+  });
+  return handleResponse(response);
+}
+
+export async function resetDemo() {
+  const response = await fetch(`${API_BASE}/api/missions/reset`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  return handleResponse(response);
+}
+
+// ✅ Verification Endpoints
+export async function verifyOtp(missionId: string, otp: string) {
+  const response = await fetch(`${API_BASE}/api/missions/verify/otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ missionId, otp }),
+  });
+  return handleResponse(response);
+}
+
+export async function rejectVerification(missionId: string) {
+  const response = await fetch(`${API_BASE}/api/missions/verify/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ missionId }),
+  });
+  return handleResponse(response);
+}
+
+export async function approveVerification(missionId: string) {
+  const response = await fetch(`${API_BASE}/api/missions/verify/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ missionId }),
+  });
+  return handleResponse(response);
+}
+
+// Attack Endpoints
+export async function simulatePromptInjection() {
+  const response = await fetch(`${API_BASE}/api/attacks/prompt-injection`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  return handleResponse(response);
+}
+
+export async function simulateStolenKey() {
+  const response = await fetch(`${API_BASE}/api/attacks/stolen-key`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  return handleResponse(response);
+}
+
+export async function launchSpamAttack() {
+  const response = await fetch(`${API_BASE}/api/attacks/spam`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  return handleResponse(response);
+}
