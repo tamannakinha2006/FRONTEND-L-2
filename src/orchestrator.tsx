@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { initialState, reducer, type Action } from './state';
 import { initializeSocket, disconnectSocket } from './services/socket';

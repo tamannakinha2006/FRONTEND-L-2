@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Send, Mic, Sparkles } from 'lucide-react';
+import { Send, Sparkles } from 'lucide-react';
 import { useAegis, useOrchestrator } from '@/orchestrator';
 import type { ChatMessage } from '@/types';
 
@@ -18,7 +18,8 @@ export function MissionConsole() {
   const [isProcessing, setIsProcessing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const chatMessages = state?.chat || [];
+  // Stabilise chatMessages reference to avoid warning
+  const chatMessages = useMemo(() => state?.chat || [], [state?.chat]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -106,9 +107,6 @@ export function MissionConsole() {
             className="flex-1 resize-none bg-transparent px-2 py-1.5 text-[13px] text-white placeholder:text-ink-faint focus:outline-none disabled:opacity-50"
             style={{ maxHeight: 100 }}
           />
-          <button className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-dim transition-colors hover:bg-white/5 hover:text-white">
-            <Mic className="h-4 w-4" strokeWidth={2} />
-          </button>
           <button
             onClick={() => void handleSend(input)}
             disabled={!input.trim() || isProcessing}
