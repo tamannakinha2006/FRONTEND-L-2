@@ -135,6 +135,7 @@ export interface VerificationState {
   missionId: string | null;
   level: 'otp' | 'phone' | 'manual' | 'resolved' | 'rejected' | null;
   message: string | null;
+  otp?: string | null;               // ← added
 }
 
 export interface AegisState {

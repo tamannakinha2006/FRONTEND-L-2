@@ -190,7 +190,7 @@ export type Action =
   | { type: 'UPDATE_MISSION'; payload: { id: string; changes: Partial<Mission> } }
   | { type: 'UPDATE_TIMELOCK'; payload: number }
   | { type: 'SELECT_MISSION'; payload: string | null }
-  | { type: 'SET_VERIFICATION'; payload: { missionId: string; level: string; message: string } }
+  | { type: 'SET_VERIFICATION'; payload: { missionId: string; level: string; message: string; otp?: string } }
   | { type: 'CLEAR_VERIFICATION' };
 
 export function reducer(state: AegisState, action: Action): AegisState {
@@ -292,18 +292,19 @@ export function reducer(state: AegisState, action: Action): AegisState {
     case 'SELECT_MISSION':
       return { ...state, selectedMissionId: action.payload };
 
-    case 'SET_VERIFICATION': {
-      const isClosingEvent = ['resolved', 'rejected'].includes(action.payload.level);
-      return {
-        ...state,
-        verification: {
-          active: !isClosingEvent,
-          missionId: action.payload.missionId,
-          level: action.payload.level as VerificationState['level'],
-          message: action.payload.message,
-        },
-      };
-    }
+   case 'SET_VERIFICATION': {
+  const isClosingEvent = ['resolved', 'rejected'].includes(action.payload.level);
+  return {
+    ...state,
+    verification: {
+      active: !isClosingEvent,
+      missionId: action.payload.missionId,
+      level: action.payload.level as VerificationState['level'],
+      message: action.payload.message,
+      otp: action.payload.otp || null,
+    },
+  };
+}
 
     case 'CLEAR_VERIFICATION':
       return { ...state, verification: { active: false, missionId: null, level: null, message: null } };

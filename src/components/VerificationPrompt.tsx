@@ -1,25 +1,67 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ShieldAlert, KeyRound, PhoneCall, XCircle, Search, Loader2, Check } from 'lucide-react';
+import {
+  ShieldAlert,
+  KeyRound,
+  PhoneCall,
+  XCircle,
+  Search,
+  Loader2,
+  Check,
+  Copy,
+  Clock,
+  Eye,
+} from 'lucide-react';
 import { useAegis, useOrchestrator } from '@/orchestrator';
 
 export function VerificationPrompt() {
   const { state, dispatch } = useAegis();
   const { verifyOtp, rejectVerification, approveVerification } = useOrchestrator();
-  const { active, missionId, level, message } = state.verification;
+  const { active, missionId, level, message, otp } = state.verification;
 
   const [otpInput, setOtpInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [otpCopied, setOtpCopied] = useState(false);
+  const [otpVisible, setOtpVisible] = useState(true);
 
-  // Auto-dismiss the 'phone' notification when the mission enters 'executing' (time lock phase)
+  const otpTimerRef = useRef<number | null>(null);
+  const OTP_TIMEOUT = 20_000; // 20 seconds
+
+  // Auto-dismiss phone notification when mission enters executing
   useEffect(() => {
-    if (level === 'phone' && state.mission?.status === 'executing') {
-      setTimeout(() => {
-        dispatch({ type: 'CLEAR_VERIFICATION' });
-      }, 3000); // Give the user 3 seconds to see the notification before it clears
+    if (level === 'phone' && missionId) {
+      const mission = state.missions.find(m => m.id === missionId);
+      if (mission?.status === 'executing') {
+        const timer = setTimeout(() => {
+          dispatch({ type: 'CLEAR_VERIFICATION' });
+        }, 3000);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [level, state.mission?.status, dispatch]);
+  }, [level, missionId, state.missions, dispatch]);
+
+  // Hide the OTP after 20 seconds
+  useEffect(() => {
+    if (otp && active) {
+      setOtpVisible(true);
+      if (otpTimerRef.current) clearTimeout(otpTimerRef.current);
+      otpTimerRef.current = window.setTimeout(() => {
+        setOtpVisible(false);
+      }, OTP_TIMEOUT);
+      return () => {
+        if (otpTimerRef.current) clearTimeout(otpTimerRef.current);
+      };
+    }
+  }, [otp, active]);
+
+  // Clear the local input when the prompt opens
+  useEffect(() => {
+    if (active) {
+      setOtpInput('');
+      setError(null);
+    }
+  }, [active]);
 
   if (!active || !missionId) return null;
 
@@ -34,8 +76,9 @@ export function VerificationPrompt() {
     try {
       await verifyOtp(missionId, otpInput);
       setOtpInput('');
-    } catch (err: any) {
-      setError(err.message || 'Invalid OTP');
+      dispatch({ type: 'CLEAR_VERIFICATION' });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Invalid OTP');
     } finally {
       setLoading(false);
     }
@@ -45,7 +88,8 @@ export function VerificationPrompt() {
     setLoading(true);
     try {
       await rejectVerification(missionId);
-    } catch (err: any) {
+      dispatch({ type: 'CLEAR_VERIFICATION' });
+    } catch {
       setError('Failed to cancel mission.');
     } finally {
       setLoading(false);
@@ -57,10 +101,19 @@ export function VerificationPrompt() {
     setError(null);
     try {
       await approveVerification(missionId);
-    } catch (err: any) {
-      setError(err.message || 'Failed to approve mission.');
+      dispatch({ type: 'CLEAR_VERIFICATION' });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to approve mission.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const copyOtpToClipboard = () => {
+    if (otp) {
+      navigator.clipboard.writeText(otp);
+      setOtpCopied(true);
+      setTimeout(() => setOtpCopied(false), 2000);
     }
   };
 
@@ -100,6 +153,40 @@ export function VerificationPrompt() {
 
             {level === 'otp' && (
               <div className="space-y-4">
+                {/* OTP Display with judge‑only message */}
+                {otp && otpVisible && (
+                  <div className="relative rounded-xl border border-gold/30 bg-gold/5 p-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5 mb-2 px-2 py-1 rounded-lg bg-gold/10 border border-gold/20 text-[10px] font-medium text-soft-gold-text">
+                      <Eye className="h-3 w-3" />
+                      Judge‑only demo – OTP is printed on screen instead of being sent via email
+                    </div>
+                    <p className="text-[10px] text-ink-faint mb-2">
+                      Your verification code (valid for 20 seconds):
+                    </p>
+                    <div className="flex items-center justify-center gap-3">
+                      <code className="text-2xl font-mono font-bold tracking-[0.3em] text-soft-gold-text select-all">
+                        {otp}
+                      </code>
+                      <button
+                        onClick={copyOtpToClipboard}
+                        className="p-1 rounded-lg bg-gold/10 hover:bg-gold/20 transition-colors"
+                        title="Copy OTP"
+                      >
+                        {otpCopied ? (
+                          <Check className="h-4 w-4 text-success" />
+                        ) : (
+                          <Copy className="h-4 w-4 text-gold" />
+                        )}
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-center gap-1 mt-2 text-[10px] text-ink-faint">
+                      <Clock className="h-3 w-3" />
+                      <span>This code will disappear in 20 seconds</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* OTP Input */}
                 <input
                   type="text"
                   maxLength={6}
