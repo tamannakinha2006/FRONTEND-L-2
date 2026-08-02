@@ -17,56 +17,56 @@ export async function createMission(userPrompt: string) {
   return handleResponse(response);
 }
 
-export async function executeMission() {
+export async function executeMission(missionId: string) {
   const response = await fetch(`${API_BASE}/api/missions/execute`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ missionId }),
   });
   return handleResponse(response);
 }
 
-export async function cancelMission() {
+export async function cancelMission(missionId: string) {
   const response = await fetch(`${API_BASE}/api/missions/cancel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ missionId }),
   });
   return handleResponse(response);
 }
 
-export async function freezeWallet() {
+export async function freezeWallet(missionId: string) {
   const response = await fetch(`${API_BASE}/api/missions/freeze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ missionId }),
   });
   return handleResponse(response);
 }
 
-export async function unfreezeWallet() {
+export async function unfreezeWallet(missionId: string) {
   const response = await fetch(`${API_BASE}/api/missions/unfreeze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ missionId }),
   });
   return handleResponse(response);
 }
 
-export async function nukeWallet() {
+export async function nukeWallet(missionId: string) {
   const response = await fetch(`${API_BASE}/api/missions/nuke`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ missionId }),
   });
   return handleResponse(response);
 }
 
-export async function rotateSessionKey() {
+export async function rotateSessionKey(missionId: string) {
   const response = await fetch(`${API_BASE}/api/missions/rotate-key`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ missionId }),
   });
   return handleResponse(response);
 }
@@ -98,7 +98,6 @@ export async function resetDemo() {
   return handleResponse(response);
 }
 
-// ✅ Verification Endpoints
 export async function verifyOtp(missionId: string, otp: string) {
   const response = await fetch(`${API_BASE}/api/missions/verify/otp`, {
     method: 'POST',
@@ -126,7 +125,6 @@ export async function approveVerification(missionId: string) {
   return handleResponse(response);
 }
 
-// Attack Endpoints
 export async function simulatePromptInjection() {
   const response = await fetch(`${API_BASE}/api/attacks/prompt-injection`, {
     method: 'POST',

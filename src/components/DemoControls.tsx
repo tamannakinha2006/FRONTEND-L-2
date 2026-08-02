@@ -12,16 +12,18 @@ import {
   ShieldAlert,
   type LucideIcon,
 } from 'lucide-react';
-import { useOrchestrator } from '@/orchestrator';
+import { useOrchestrator, useAegis } from '@/orchestrator';
 
 interface DemoButton {
   label: string;
   icon: LucideIcon;
   onClick: () => void;
   variant: 'attack' | 'security' | 'danger' | 'neutral';
+  disabled?: boolean;
 }
 
 export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
+  const { state } = useAegis();
   const {
     simulatePromptInjection,
     simulateStolenKey,
@@ -34,14 +36,42 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
     resetDemo,
   } = useOrchestrator();
 
+  // Read the currently selected mission ID from global state
+  const missionId = state.selectedMissionId;
+  const hasMission = !!missionId;
+
   const buttons: DemoButton[] = [
     { label: 'Simulate Prompt Injection', icon: Bug, onClick: () => void simulatePromptInjection(), variant: 'attack' },
     { label: 'Simulate Stolen Key', icon: KeyRound, onClick: () => void simulateStolenKey(), variant: 'attack' },
     { label: 'Launch Spam Attack', icon: Flame, onClick: () => void launchSpamAttack(), variant: 'attack' },
-    { label: 'Rotate Session Key', icon: RefreshCw, onClick: () => void rotateSessionKey(), variant: 'security' },
-    { label: 'Freeze Wallet', icon: Snowflake, onClick: () => void freezeWallet(), variant: 'security' },
-    { label: 'Unfreeze Wallet', icon: Snowflake, onClick: () => void unfreezeWallet(), variant: 'security' },
-    { label: 'Nuke Wallet', icon: Bomb, onClick: () => void nukeWallet(), variant: 'danger' },
+    {
+      label: 'Rotate Session Key',
+      icon: RefreshCw,
+      onClick: () => missionId && void rotateSessionKey(missionId),
+      variant: 'security',
+      disabled: !hasMission,
+    },
+    {
+      label: 'Freeze Wallet',
+      icon: Snowflake,
+      onClick: () => missionId && void freezeWallet(missionId),
+      variant: 'security',
+      disabled: !hasMission,
+    },
+    {
+      label: 'Unfreeze Wallet',
+      icon: Snowflake,
+      onClick: () => missionId && void unfreezeWallet(missionId),
+      variant: 'security',
+      disabled: !hasMission,
+    },
+    {
+      label: 'Nuke Wallet',
+      icon: Bomb,
+      onClick: () => missionId && void nukeWallet(missionId),
+      variant: 'danger',
+      disabled: !hasMission,
+    },
     { label: 'Cancel Pending Transaction', icon: XCircle, onClick: () => void cancelPendingTx(), variant: 'security' },
     { label: 'Audit Trail', icon: ScrollText, onClick: onAuditTrail, variant: 'neutral' },
     { label: 'Reset Demo', icon: RotateCcw, onClick: () => void resetDemo(), variant: 'neutral' },
@@ -70,10 +100,13 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.03, duration: 0.2 }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={btn.disabled ? {} : { scale: 1.02 }}
+              whileTap={btn.disabled ? {} : { scale: 0.98 }}
               onClick={btn.onClick}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-medium transition-all ${variantStyles[btn.variant]}`}
+              disabled={btn.disabled}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-medium transition-all ${
+                variantStyles[btn.variant]
+              } ${btn.disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
               <Icon className="h-3.5 w-3.5" strokeWidth={2} />
               {btn.label}

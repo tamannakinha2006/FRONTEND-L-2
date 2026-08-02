@@ -25,72 +25,21 @@ export const SHIELD_ORDER: ShieldId[] = [
   'circuitBreaker',
 ];
 
-export const SHIELD_META: Record<
-  ShieldId,
-  { label: string; description: string }
-> = {
-  missionGuard: {
-    label: 'Mission Guard',
-    description: 'Validates mission intent against authorized scope.',
-  },
-  policyEngine: {
-    label: 'Policy Engine',
-    description: 'Enforces spending limits, merchant allowlists & rules.',
-  },
-  riskEngine: {
-    label: 'Risk Engine',
-    description: 'Scores transaction risk using behavioral models.',
-  },
-  smartContract: {
-    label: 'Smart Contract',
-    description: 'On-chain escrow enforcing budget & expiry constraints.',
-  },
-  timeLock: {
-    label: 'Time Lock',
-    description: 'Delay window before any irreversible action executes.',
-  },
-  circuitBreaker: {
-    label: 'Circuit Breaker',
-    description: 'Halts all activity when anomaly threshold is breached.',
-  },
+export const SHIELD_META: Record<ShieldId, { label: string; description: string }> = {
+  missionGuard: { label: 'Mission Guard', description: 'Validates mission intent against authorized scope.' },
+  policyEngine: { label: 'Policy Engine', description: 'Enforces spending limits, merchant allowlists & rules.' },
+  riskEngine: { label: 'Risk Engine', description: 'Scores transaction risk using behavioral models.' },
+  smartContract: { label: 'Smart Contract', description: 'On-chain escrow enforcing budget & expiry constraints.' },
+  timeLock: { label: 'Time Lock', description: 'Delay window before any irreversible action executes.' },
+  circuitBreaker: { label: 'Circuit Breaker', description: 'Halts all activity when anomaly threshold is breached.' },
 };
 
 export const DEFAULT_POLICIES: Policy[] = [
-  {
-    id: 'p1',
-    name: 'Max Spend Per Mission',
-    description: 'No single mission may spend more than ₹1,00,000.',
-    enabled: true,
-    rule: 'mission.budget <= 100000',
-  },
-  {
-    id: 'p2',
-    name: 'Merchant Allowlist',
-    description: 'Only approved merchants may receive funds.',
-    enabled: true,
-    rule: 'merchant IN (AWS India, GitHub, Stripe India, IndiGo)',
-  },
-  {
-    id: 'p3',
-    name: 'Session Expiry',
-    description: 'Mission wallets expire after 24 hours.',
-    enabled: true,
-    rule: 'now < mission.expiry',
-  },
-  {
-    id: 'p4',
-    name: 'Prompt Injection Defense',
-    description: 'Blocks instructions that attempt to override policy.',
-    enabled: false,
-    rule: 'intent.signature == verified',
-  },
-  {
-    id: 'p5',
-    name: 'Rate Limit',
-    description: 'Maximum 10 transactions per mission per minute.',
-    enabled: false,
-    rule: 'tx.rate <= 10/min',
-  },
+  { id: 'p1', name: 'Max Spend Per Mission', description: 'No single mission may spend more than ₹1,00,000.', enabled: true, rule: 'mission.budget <= 100000' },
+  { id: 'p2', name: 'Merchant Allowlist', description: 'Only approved merchants may receive funds.', enabled: true, rule: 'merchant IN (AWS India, GitHub, Stripe India, IndiGo)' },
+  { id: 'p3', name: 'Session Expiry', description: 'Mission wallets expire after 24 hours.', enabled: true, rule: 'now < mission.expiry' },
+  { id: 'p4', name: 'Prompt Injection Defense', description: 'Blocks instructions that attempt to override policy.', enabled: false, rule: 'intent.signature == verified' },
+  { id: 'p5', name: 'Rate Limit', description: 'Maximum 10 transactions per mission per minute.', enabled: false, rule: 'tx.rate <= 10/min' },
 ];
 
 const DEFAULT_PROFILE: EnterpriseProfile = {
@@ -100,7 +49,7 @@ const DEFAULT_PROFILE: EnterpriseProfile = {
   plan: 'Enterprise Sovereign',
   perMissionCap: 100000,
   dailyOutflowCeiling: 300000,
-  dailySpent: 0,      // ← changed from 50000
+  dailySpent: 50000,
   highestSpend: 0,
 };
 
@@ -143,7 +92,7 @@ function makeShields(): Record<ShieldId, ShieldState> {
 
 export function initialState(): AegisState {
   return {
-    mission: null,
+    missions: [],
     shields: makeShields(),
     logs: [],
     chat: [
@@ -157,7 +106,6 @@ export function initialState(): AegisState {
     audit: [],
     policies: DEFAULT_POLICIES.map((p) => ({ ...p })),
     walletStatus: 'empty',
-    // trustScore: 98,  // ❌ REMOVED
     attackCount: 0,
     blockedCount: 0,
     consecutiveFailures: 0,
@@ -167,6 +115,7 @@ export function initialState(): AegisState {
     allocatedBalance: 0,
     timeLockRemaining: 0,
     verification: { active: false, missionId: null, level: null, message: null },
+    selectedMissionId: null,
   };
 }
 
@@ -176,17 +125,18 @@ export type Action =
   | { type: 'ADD_LOG'; payload: { message: string; severity: LogSeverity; timestamp?: number } }
   | { type: 'ADD_CHAT'; payload: { role: 'user' | 'aegis'; text: string; timestamp?: number } }
   | { type: 'UPDATE_SHIELD'; payload: { id: ShieldId; status: ShieldState['status']; lastCheck?: string } }
-  | { type: 'SET_MISSION'; payload: Mission | null }
+  | { type: 'SET_MISSION'; payload: Mission }
+  | { type: 'SET_MISSIONS'; payload: Mission[] }
+  | { type: 'REMOVE_MISSION'; payload: string }
   | { type: 'SET_WALLET_STATUS'; payload: AegisState['walletStatus'] }
-  // | { type: 'SET_TRUST'; payload: number }   // ❌ REMOVED
   | { type: 'ADD_AUDIT'; payload: AuditEntry }
   | { type: 'UPDATE_ATTACK_STATS'; payload: { attackCount: number; blockedCount: number } }
   | { type: 'UPDATE_POLICIES'; payload: Policy[] }
   | { type: 'UPDATE_BALANCES'; payload: { reserveBalance: number; allocatedBalance: number } }
   | { type: 'UPDATE_PROFILE'; payload: EnterpriseProfile }
-  | { type: 'UPDATE_MISSION'; payload: Partial<Mission> }
+  | { type: 'UPDATE_MISSION'; payload: { id: string; changes: Partial<Mission> } }
   | { type: 'UPDATE_TIMELOCK'; payload: number }
-  | { type: 'CLEAR_MISSION' }
+  | { type: 'SELECT_MISSION'; payload: string | null }
   | { type: 'SET_VERIFICATION'; payload: { missionId: string; level: string; message: string } }
   | { type: 'CLEAR_VERIFICATION' };
 
@@ -196,13 +146,9 @@ export function reducer(state: AegisState, action: Action): AegisState {
       return {
         ...initialState(),
         ...action.payload,
-        logs: Array.isArray(action.payload?.logs) ? action.payload.logs : state.logs || [],
-        chat: Array.isArray(action.payload?.chat) ? action.payload.chat : state.chat || [],
-        audit: Array.isArray(action.payload?.audit) ? action.payload.audit : state.audit || [],
-        shields: action.payload?.shields || state.shields || makeShields(),
-        mission: action.payload?.mission !== undefined ? action.payload.mission : state.mission,
-        walletStatus: action.payload?.walletStatus || state.walletStatus || 'empty',
-        verification: state.verification || { active: false, missionId: null, level: null, message: null },
+        missions: action.payload.missions || [],
+        selectedMissionId: action.payload.selectedMissionId || null,
+        verification: action.payload.verification || initialState().verification,
       };
 
     case 'RESET':
@@ -246,57 +192,52 @@ export function reducer(state: AegisState, action: Action): AegisState {
       };
     }
 
-    case 'SET_MISSION':
-      return {
-        ...state,
-        mission: action.payload,
-        walletStatus: action.payload ? 'active' : 'empty',
-      };
+    case 'SET_MISSION': {
+      const existing = state.missions.find(m => m.id === action.payload.id);
+      const missions = existing
+        ? state.missions.map(m => m.id === action.payload.id ? { ...m, ...action.payload } : m)
+        : [...state.missions, action.payload];
+      return { ...state, missions };
+    }
+
+    case 'SET_MISSIONS':
+      return { ...state, missions: action.payload };
+
+    case 'REMOVE_MISSION':
+      return { ...state, missions: state.missions.filter(m => m.id !== action.payload) };
 
     case 'SET_WALLET_STATUS':
       return { ...state, walletStatus: action.payload };
 
-    // case 'SET_TRUST':   // ❌ REMOVED
-    //   return { ...state, trustScore: Math.max(0, Math.min(100, action.payload)) };
-
     case 'ADD_AUDIT': {
       const currentAudit = Array.isArray(state.audit) ? state.audit : [];
-      return {
-        ...state,
-        audit: [action.payload, ...currentAudit].slice(0, 100),
-      };
+      return { ...state, audit: [action.payload, ...currentAudit].slice(0, 100) };
     }
 
     case 'UPDATE_ATTACK_STATS':
-      return {
-        ...state,
-        attackCount: action.payload.attackCount,
-        blockedCount: action.payload.blockedCount,
-      };
+      return { ...state, attackCount: action.payload.attackCount, blockedCount: action.payload.blockedCount };
 
     case 'UPDATE_POLICIES':
       return { ...state, policies: action.payload };
 
     case 'UPDATE_BALANCES':
-      return {
-        ...state,
-        reserveBalance: action.payload.reserveBalance,
-        allocatedBalance: action.payload.allocatedBalance,
-      };
+      return { ...state, reserveBalance: action.payload.reserveBalance, allocatedBalance: action.payload.allocatedBalance };
 
     case 'UPDATE_PROFILE':
       return { ...state, profile: action.payload };
 
-    case 'UPDATE_MISSION':
-      return state.mission
-        ? { ...state, mission: { ...state.mission, ...action.payload } }
-        : state;
+    case 'UPDATE_MISSION': {
+      const missions = state.missions.map(m =>
+        m.id === action.payload.id ? { ...m, ...action.payload.changes } : m
+      );
+      return { ...state, missions };
+    }
 
     case 'UPDATE_TIMELOCK':
       return { ...state, timeLockRemaining: action.payload };
 
-    case 'CLEAR_MISSION':
-      return { ...state, mission: null, walletStatus: 'empty' };
+    case 'SELECT_MISSION':
+      return { ...state, selectedMissionId: action.payload };
 
     case 'SET_VERIFICATION': {
       const isClosingEvent = ['resolved', 'rejected'].includes(action.payload.level);

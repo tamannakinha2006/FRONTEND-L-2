@@ -48,54 +48,54 @@ export function useOrchestrator() {
     }
   };
 
-  const executeMission = async () => {
+  const executeMission = async (missionId: string) => {
     try {
-      await api.executeMission();
+      await api.executeMission(missionId);
     } catch (error) {
       console.error('Failed to execute mission:', error);
       throw error;
     }
   };
 
-  const cancelMission = async () => {
+  const cancelMission = async (missionId: string) => {
     try {
-      await api.cancelMission();
+      await api.cancelMission(missionId);
     } catch (error) {
       console.error('Failed to cancel mission:', error);
       throw error;
     }
   };
 
-  const freezeWallet = async () => {
+  const freezeWallet = async (missionId: string) => {
     try {
-      await api.freezeWallet();
+      await api.freezeWallet(missionId);
     } catch (error) {
       console.error('Failed to freeze wallet:', error);
       throw error;
     }
   };
 
-  const unfreezeWallet = async () => {
+  const unfreezeWallet = async (missionId: string) => {
     try {
-      await api.unfreezeWallet();
+      await api.unfreezeWallet(missionId);
     } catch (error) {
       console.error('Failed to unfreeze wallet:', error);
       throw error;
     }
   };
 
-  const nukeWallet = async () => {
+  const nukeWallet = async (missionId: string) => {
     try {
-      await api.nukeWallet();
+      await api.nukeWallet(missionId);
     } catch (error) {
       console.error('Failed to nuke wallet:', error);
       throw error;
     }
   };
 
-  const rotateSessionKey = async () => {
+  const rotateSessionKey = async (missionId: string) => {
     try {
-      await api.rotateSessionKey();
+      await api.rotateSessionKey(missionId);
     } catch (error) {
       console.error('Failed to rotate session key:', error);
       throw error;
@@ -129,7 +129,6 @@ export function useOrchestrator() {
     }
   };
 
-  // ✅ Verification Handlers
   const verifyOtp = async (missionId: string, otp: string) => {
     try {
       await api.verifyOtp(missionId, otp);
@@ -157,7 +156,6 @@ export function useOrchestrator() {
     }
   };
 
-  // Attack Simulations
   const simulatePromptInjection = async () => {
     try {
       await api.simulatePromptInjection();
@@ -198,7 +196,7 @@ export function useOrchestrator() {
     resetDemo,
     verifyOtp,
     rejectVerification,
-    approveVerification,  // ✅ NEW: exported for manual approval
+    approveVerification,
     simulatePromptInjection,
     simulateStolenKey,
     launchSpamAttack,

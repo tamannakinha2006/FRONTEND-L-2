@@ -22,13 +22,16 @@ export function initializeSocket(dispatch: Dispatch<Action>): Socket {
   socket.on('disconnect', () => console.log('🔌 Socket disconnected'));
   socket.on('connect_error', (error) => console.error('❌ Socket connection error:', error));
 
-  socket.on('state_init', (data) => dispatch({ type: 'INIT_STATE', payload: data }));
+  socket.on('state_init', (data) => {
+    dispatch({ type: 'INIT_STATE', payload: data });
+    if (data.missions) dispatch({ type: 'SET_MISSIONS', payload: data.missions });
+  });
   socket.on('log', (entry) => dispatch({ type: 'ADD_LOG', payload: entry }));
   socket.on('chat', (entry) => dispatch({ type: 'ADD_CHAT', payload: entry }));
   socket.on('shield_update', (data) => dispatch({ type: 'UPDATE_SHIELD', payload: data }));
   socket.on('mission_update', (data) => dispatch({ type: 'SET_MISSION', payload: data.mission }));
+  socket.on('missions_list', (data) => dispatch({ type: 'SET_MISSIONS', payload: data.missions }));
   socket.on('wallet_status', (data) => dispatch({ type: 'SET_WALLET_STATUS', payload: data.status }));
-  
   socket.on('audit', (entry) => dispatch({ type: 'ADD_AUDIT', payload: entry }));
   socket.on('attack_stats', (data) => dispatch({ type: 'UPDATE_ATTACK_STATS', payload: data }));
   socket.on('policy_update', (data) => dispatch({ type: 'UPDATE_POLICIES', payload: data.policies }));
@@ -36,8 +39,6 @@ export function initializeSocket(dispatch: Dispatch<Action>): Socket {
   socket.on('profile_update', (profile) => dispatch({ type: 'UPDATE_PROFILE', payload: profile }));
   socket.on('state_reset', (data) => dispatch({ type: 'INIT_STATE', payload: data }));
   socket.on('time_lock_update', (data) => dispatch({ type: 'UPDATE_TIMELOCK', payload: data.remaining }));
-  
-  // ✅ NEW: Verification Engine Socket Link
   socket.on('verification_update', (data) => dispatch({ type: 'SET_VERIFICATION', payload: data }));
 
   return socket;

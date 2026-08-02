@@ -71,7 +71,6 @@ export interface Mission {
   category?: MissionCategory;
   policyId?: string;
   riskScore?: number;
-  // Phase 2 optional fields
   walletAddress?: string;
   contractTxHash?: string;
   explorerUrl?: string;
@@ -139,7 +138,8 @@ export interface VerificationState {
 }
 
 export interface AegisState {
-  mission: Mission | null;
+  missions: Mission[];
+  selectedMissionId: string | null;
   shields: Record<ShieldId, ShieldState>;
   logs: TerminalLog[];
   chat: ChatMessage[];
