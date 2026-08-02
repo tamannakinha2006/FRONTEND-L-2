@@ -1,7 +1,7 @@
 🛡️ AEGIS Frontend
 Mission Wallets for Autonomous AI
 Enterprise dashboard for governing AI payments.
-`[insert 20-second demo GIF here: Mission creation → Wallet appears → Guards → Attack → Rejected]`
+
 ---
 🤔 Why AEGIS Exists
 	
@@ -30,7 +30,7 @@ Screen
 📡 Activity Feed	Human-readable, not developer logs
 📜 Audit Trail	Full history, fully explainable
 🚨 Emergency Controls	Freeze, cancel, terminate — one click
-`[insert screenshots for each screen]`
+
 ---
 🧭 User Journey
 ```
