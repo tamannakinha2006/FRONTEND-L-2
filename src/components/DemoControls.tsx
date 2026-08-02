@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bug,
   KeyRound,
@@ -10,6 +11,7 @@ import {
   ScrollText,
   RotateCcw,
   ShieldAlert,
+  AlertTriangle,
   type LucideIcon,
 } from 'lucide-react';
 import { useOrchestrator, useAegis } from '@/orchestrator';
@@ -36,9 +38,30 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
     resetDemo,
   } = useOrchestrator();
 
-  // Read the currently selected mission ID from global state
   const missionId = state.selectedMissionId;
   const hasMission = !!missionId;
+
+  // Nuke confirmation state
+  const [showNukeConfirm, setShowNukeConfirm] = useState(false);
+  const [nuking, setNuking] = useState(false);
+
+  const handleNukeClick = () => {
+    if (!missionId) return;
+    setShowNukeConfirm(true);
+  };
+
+  const handleNukeConfirm = async () => {
+    if (!missionId) return;
+    setNuking(true);
+    try {
+      await nukeWallet(missionId);
+      setShowNukeConfirm(false);
+    } catch (error) {
+      console.error('Nuke failed:', error);
+    } finally {
+      setNuking(false);
+    }
+  };
 
   const buttons: DemoButton[] = [
     { label: 'Simulate Prompt Injection', icon: Bug, onClick: () => void simulatePromptInjection(), variant: 'attack' },
@@ -68,9 +91,9 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
     {
       label: 'Nuke Wallet',
       icon: Bomb,
-      onClick: () => missionId && void nukeWallet(missionId),
+      onClick: handleNukeClick,
       variant: 'danger',
-      disabled: !hasMission,
+      disabled: !hasMission || nuking,
     },
     { label: 'Cancel Pending Transaction', icon: XCircle, onClick: () => void cancelPendingTx(), variant: 'security' },
     { label: 'Audit Trail', icon: ScrollText, onClick: onAuditTrail, variant: 'neutral' },
@@ -85,7 +108,7 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
   };
 
   return (
-    <div className="rounded-2xl border border-gold/15 bg-bg-card/40 p-4">
+    <div className="rounded-2xl border border-gold/15 bg-bg-card/40 p-4 relative">
       <div className="mb-3 flex items-center gap-2">
         <ShieldAlert className="h-3.5 w-3.5 text-gold" strokeWidth={2} />
         <span className="text-[12px] font-semibold tracking-wide text-white">Demo Controls</span>
@@ -114,6 +137,59 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
           );
         })}
       </div>
+
+      {/* Nuke confirmation overlay */}
+      <AnimatePresence>
+        {showNukeConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-bg/80 backdrop-blur-sm rounded-2xl"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 10 }}
+              className="w-full max-w-xs rounded-xl border border-error/40 bg-bg-card p-5 shadow-2xl"
+            >
+              <div className="flex items-center gap-2 text-error mb-3">
+                <AlertTriangle className="h-5 w-5" strokeWidth={2} />
+                <h4 className="text-sm font-bold">Confirm Nuke</h4>
+              </div>
+              <p className="text-xs text-ink-dim mb-4">
+                This will permanently destroy the mission wallet and refund the budget. This action cannot be undone.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setShowNukeConfirm(false)}
+                  disabled={nuking}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 text-ink-dim hover:bg-white/5 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleNukeConfirm}
+                  disabled={nuking}
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg bg-error text-white hover:bg-error/90 transition-colors flex items-center gap-1.5"
+                >
+                  {nuking ? (
+                    <>
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      Nuking…
+                    </>
+                  ) : (
+                    <>
+                      <Bomb className="h-3 w-3" />
+                      Nuke
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

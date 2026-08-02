@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useAegis, useOrchestrator } from '@/orchestrator';
 import { formatINR } from '@/utils/format';
-import { getPolicyByCategory, type PolicyProfile } from '@/constants/policyProfiles'; // ✅ correct import
+import { getPolicyByCategory, type PolicyProfile } from '@/constants/policyProfiles';
 import type { Mission } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -64,11 +64,16 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
     executeMission,
     cancelMission,
     unfreezeWallet,
-    nukeWallet,
     rotateSessionKey,
-  } = useOrchestrator();
+  } = useOrchestrator(); // ✅ nukeWallet removed – not used here
 
-  const missions = useMemo(() => state.missions || [], [state.missions]);
+  // Filter out nuked missions – they must disappear
+  const missions = useMemo(() => {
+    return (state.missions || []).filter(
+      (m: Mission) => m.status !== 'nuked'
+    );
+  }, [state.missions]);
+
   const selectedId = state.selectedMissionId;
 
   const latestId = useMemo(() => {
@@ -82,6 +87,14 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
     return latestId;
   }, [selectedId, latestId, missions]);
 
+  // If the focused mission disappears (nuked), clear focus
+  useEffect(() => {
+    if (focusedId && !missions.some(m => m.id === focusedId)) {
+      dispatch({ type: 'SELECT_MISSION', payload: null });
+    }
+  }, [focusedId, missions, dispatch]);
+
+  // Keep global selectedMissionId in sync
   useEffect(() => {
     if (focusedId && focusedId !== selectedId) {
       dispatch({ type: 'SELECT_MISSION', payload: focusedId });
@@ -94,11 +107,11 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
   const handleExecute = useCallback((id: string) => executeMission(id), [executeMission]);
   const handleCancel = useCallback((id: string) => cancelMission(id), [cancelMission]);
   const handleUnfreeze = useCallback((id: string) => unfreezeWallet(id), [unfreezeWallet]);
-  const handleNuke = useCallback((id: string) => nukeWallet(id), [nukeWallet]);
   const handleRotateKey = useCallback((id: string) => rotateSessionKey(id), [rotateSessionKey]);
 
   return (
     <div className="flex flex-col gap-3 p-4 overflow-y-auto max-h-full">
+      {/* Pocket list for older missions */}
       {pocketMissions.length > 0 && (
         <div className="flex flex-col gap-2">
           {pocketMissions.map(m => (
@@ -111,13 +124,13 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
         </div>
       )}
 
+      {/* Full detail card for focused mission */}
       {focusedMission ? (
         <MissionDetail
           mission={focusedMission}
           onExecute={() => handleExecute(focusedMission.id)}
           onCancel={() => handleCancel(focusedMission.id)}
           onUnfreeze={() => handleUnfreeze(focusedMission.id)}
-          onNuke={() => handleNuke(focusedMission.id)}
           onRotateKey={() => handleRotateKey(focusedMission.id)}
           onViewPolicies={onViewPolicies}
         />
@@ -135,7 +148,7 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
 }
 
 // ---------------------------------------------------------------------------
-// Pocket card
+// Pocket card (collapsed view)
 // ---------------------------------------------------------------------------
 function MissionPocket({ mission, onClick }: { mission: Mission; onClick: () => void }) {
   return (
@@ -168,14 +181,13 @@ function MissionPocket({ mission, onClick }: { mission: Mission; onClick: () => 
 }
 
 // ---------------------------------------------------------------------------
-// Full detail card
+// Full detail card (expanded view)
 // ---------------------------------------------------------------------------
 function MissionDetail({
   mission,
   onExecute,
   onCancel,
   onUnfreeze,
-  onNuke,
   onRotateKey,
   onViewPolicies,
 }: {
@@ -183,7 +195,6 @@ function MissionDetail({
   onExecute: () => void;
   onCancel: () => void;
   onUnfreeze: () => void;
-  onNuke: () => void;
   onRotateKey: () => void;
   onViewPolicies: () => void;
 }) {
@@ -543,26 +554,6 @@ function MissionDetail({
           >
             Mission Lifecycle Concluded
           </button>
-        )}
-      </div>
-
-      {/* Additional actions (always visible) */}
-      <div className="mt-3 flex justify-end gap-2">
-        {!['completed', 'failed', 'cancelled'].includes(mission.status) && (
-          <>
-            <button
-              onClick={onNuke}
-              className="text-[10px] text-error/70 hover:text-error transition-colors"
-            >
-              Nuke
-            </button>
-            <button
-              onClick={onRotateKey}
-              className="text-[10px] text-gold/70 hover:text-gold transition-colors"
-            >
-              Rotate Key
-            </button>
-          </>
         )}
       </div>
 

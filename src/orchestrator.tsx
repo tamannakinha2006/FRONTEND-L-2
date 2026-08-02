@@ -129,6 +129,7 @@ export function useOrchestrator() {
     }
   };
 
+  // ✅ Verification Handlers
   const verifyOtp = async (missionId: string, otp: string) => {
     try {
       await api.verifyOtp(missionId, otp);
@@ -156,6 +157,7 @@ export function useOrchestrator() {
     }
   };
 
+  // Attack Simulations
   const simulatePromptInjection = async () => {
     try {
       await api.simulatePromptInjection();
