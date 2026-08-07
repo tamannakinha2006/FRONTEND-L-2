@@ -42,7 +42,11 @@ export function useOrchestrator() {
 
   const createMission = async (userPrompt: string) => {
     try {
-      await api.createMission(userPrompt);
+      const res = await api.createMission(userPrompt);
+      // Now res is typed as CreateMissionResponse, so res.mission.id exists
+      if (res.mission?.id) {
+        dispatch({ type: 'SELECT_MISSION', payload: res.mission.id });
+      }
     } catch (error) {
       console.error('Failed to create mission:', error);
       throw error;
@@ -157,7 +161,6 @@ export function useOrchestrator() {
     }
   };
 
-  // Attack simulations – now accept missionId to target the selected mission
   const simulatePromptInjection = async (missionId?: string) => {
     try {
       await api.simulatePromptInjection(missionId);

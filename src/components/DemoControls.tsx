@@ -34,7 +34,7 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
     freezeWallet,
     unfreezeWallet,
     nukeWallet,
-    cancelPendingTx,
+    cancelMission,
     resetDemo,
   } = useOrchestrator();
 
@@ -42,6 +42,7 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
   const missionId = selectedMission?.id;
   const missionStatus = selectedMission?.status;
 
+  // Can the mission be attacked / cancelled? (non‑terminal)
   const canAttack = useMemo(() => {
     if (!selectedMission) return false;
     return !['completed', 'failed', 'nuked', 'cancelled'].includes(selectedMission.status);
@@ -50,7 +51,31 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
   const canFreeze = useMemo(() => canAttack && missionStatus !== 'frozen', [canAttack, missionStatus]);
   const canUnfreeze = missionStatus === 'frozen';
   const canNuke = canAttack;
+  const canCancel = canAttack; // cancel is allowed for any active mission
 
+  // ============ Cancel confirmation state ============
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  const handleCancelClick = () => {
+    if (!missionId) return;
+    setShowCancelConfirm(true);
+  };
+
+  const handleCancelConfirm = async () => {
+    if (!missionId) return;
+    setCancelling(true);
+    try {
+      await cancelMission(missionId);
+      setShowCancelConfirm(false);
+    } catch {
+      // error handled by orchestrator
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  // Nuke confirmation state
   const [showNukeConfirm, setShowNukeConfirm] = useState(false);
   const [nuking, setNuking] = useState(false);
 
@@ -66,13 +91,13 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
       await nukeWallet(missionId);
       setShowNukeConfirm(false);
     } catch {
-      // no-op – orchestrator already handles errors
+      // no-op
     } finally {
       setNuking(false);
     }
   };
 
-  // Attack handlers – add realistic adversarial prompt to the chat before executing
+  // Attack handlers – add realistic message to chat before execution
   const handleAttack = async (
     attackFn: (missionId?: string) => Promise<void>,
     message: string
@@ -85,7 +110,7 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
     try {
       await attackFn(missionId);
     } catch {
-      // Error handling is already in the orchestrator
+      // already handled
     }
   };
 
@@ -151,7 +176,13 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
       variant: 'danger',
       disabled: !canNuke || nuking,
     },
-    { label: 'Cancel Pending Transaction', icon: XCircle, onClick: () => void cancelPendingTx(), variant: 'security' },
+    {
+      label: 'Cancel Pending Transaction',
+      icon: XCircle,
+      onClick: handleCancelClick,
+      variant: 'security',
+      disabled: !canCancel || cancelling,
+    },
     { label: 'Audit Trail', icon: ScrollText, onClick: onAuditTrail, variant: 'neutral' },
     { label: 'Reset Demo', icon: RotateCcw, onClick: () => void resetDemo(), variant: 'neutral' },
   ];
@@ -194,7 +225,60 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
         })}
       </div>
 
-      {/* Nuke confirmation overlay */}
+      {/* Cancel confirmation overlay */}
+      <AnimatePresence>
+        {showCancelConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-bg/80 backdrop-blur-sm rounded-2xl"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 10 }}
+              className="w-full max-w-xs rounded-xl border border-error/40 bg-bg-card p-5 shadow-2xl"
+            >
+              <div className="flex items-center gap-2 text-error mb-3">
+                <AlertTriangle className="h-5 w-5" strokeWidth={2} />
+                <h4 className="text-sm font-bold">Cancel Mission</h4>
+              </div>
+              <p className="text-xs text-ink-dim mb-4">
+                Are you sure you want to cancel this mission? The budget will be refunded and the transaction aborted.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setShowCancelConfirm(false)}
+                  disabled={cancelling}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 text-ink-dim hover:bg-white/5 transition-colors"
+                >
+                  No
+                </button>
+                <button
+                  onClick={handleCancelConfirm}
+                  disabled={cancelling}
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg bg-error text-white hover:bg-error/90 transition-colors flex items-center gap-1.5"
+                >
+                  {cancelling ? (
+                    <>
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      Cancelling…
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-3 w-3" />
+                      Yes, Cancel
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Nuke confirmation overlay (unchanged) */}
       <AnimatePresence>
         {showNukeConfirm && (
           <motion.div

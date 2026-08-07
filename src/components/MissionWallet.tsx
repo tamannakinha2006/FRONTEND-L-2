@@ -15,6 +15,7 @@ import {
   KeyRound,
   PhoneCall,
   ChevronDown,
+  ChevronUp,
   AlertTriangle,
 } from 'lucide-react';
 import { useAegis, useOrchestrator } from '@/orchestrator';
@@ -75,11 +76,13 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
 
   const selectedId = state.selectedMissionId;
 
+  // The latest mission is always the one with the greatest createdAt
   const latestId = useMemo(() => {
     if (missions.length === 0) return null;
     return missions.reduce((a, b) => (a.createdAt > b.createdAt ? a : b)).id;
   }, [missions]);
 
+  // Focused mission: if the user has explicitly selected one, use it; otherwise latest
   const focusedId = useMemo(() => {
     if (selectedId && missions.some(m => m.id === selectedId)) return selectedId;
     return latestId;
@@ -95,6 +98,7 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
     }
   }, [focusedId, selectedId, dispatch]);
 
+  // If the focused mission disappears (e.g., nuked), clear selection
   useEffect(() => {
     if (focusedId && !missions.some(m => m.id === focusedId)) {
       dispatch({ type: 'SELECT_MISSION', payload: null });
@@ -111,18 +115,22 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
 
   return (
     <div className="flex flex-col gap-3 p-4 overflow-y-auto max-h-full">
+      {/* Pocket stack (older missions) */}
       {pocketMissions.length > 0 && (
-        <div className="flex flex-col gap-2">
-          {pocketMissions.map(m => (
+        <div className="flex flex-col gap-2 relative">
+          {pocketMissions.map((mission, index) => (
             <MissionPocket
-              key={m.id}
-              mission={m}
-              onClick={() => dispatch({ type: 'SELECT_MISSION', payload: m.id })}
+              key={mission.id}
+              mission={mission}
+              onClick={() => dispatch({ type: 'SELECT_MISSION', payload: mission.id })}
+              stackIndex={index}
+              totalPockets={pocketMissions.length}
             />
           ))}
         </div>
       )}
 
+      {/* Full detail card for focused mission */}
       {focusedMission ? (
         <MissionDetail
           mission={focusedMission}
@@ -146,9 +154,19 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
 }
 
 // ---------------------------------------------------------------------------
-// Pocket card
+// Enhanced Pocket card with stack appearance
 // ---------------------------------------------------------------------------
-function MissionPocket({ mission, onClick }: { mission: Mission; onClick: () => void }) {
+function MissionPocket({
+  mission,
+  onClick,
+  stackIndex,
+  totalPockets,
+}: {
+  mission: Mission;
+  onClick: () => void;
+  stackIndex: number;
+  totalPockets: number;
+}) {
   return (
     <motion.div
       layout
@@ -157,7 +175,12 @@ function MissionPocket({ mission, onClick }: { mission: Mission; onClick: () => 
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.2 }}
       onClick={onClick}
-      className="cursor-pointer rounded-xl border border-gold/15 bg-bg-secondary/40 px-4 py-2 flex items-center justify-between hover:bg-bg-secondary/60 transition-colors"
+      className="relative cursor-pointer rounded-xl border border-gold/15 bg-bg-secondary/60 backdrop-blur-xl px-4 py-2 flex items-center justify-between hover:bg-bg-secondary/80 transition-colors shadow-gold-sm"
+      style={{
+        transform: `scale(${1 - stackIndex * 0.02})`,
+        zIndex: totalPockets - stackIndex,
+        marginBottom: stackIndex === totalPockets - 1 ? 0 : -4,
+      }}
     >
       <div className="flex items-center gap-3">
         <div className="text-xl">{CATEGORY_META[mission.category || 'general']?.icon || '📄'}</div>
@@ -172,14 +195,14 @@ function MissionPocket({ mission, onClick }: { mission: Mission; onClick: () => 
       </div>
       <div className="flex items-center gap-2">
         <StatusBadge status={mission.status} />
-        <ChevronDown className="h-4 w-4 text-ink-dim" />
+        <ChevronUp className="h-4 w-4 text-ink-dim" />
       </div>
     </motion.div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Full detail card – with cancel confirmation
+// Full detail card (expanded) – large, original design with cancel/nuke confirm
 // ---------------------------------------------------------------------------
 function MissionDetail({
   mission,
@@ -323,9 +346,7 @@ function MissionDetail({
     setKeysRotated(true);
   };
 
-  const handleCancelClick = () => {
-    setShowCancelConfirm(true);
-  };
+  const handleCancelClick = () => setShowCancelConfirm(true);
 
   const handleCancelConfirm = async () => {
     setCancelling(true);
@@ -333,7 +354,7 @@ function MissionDetail({
       await onCancel();
       setShowCancelConfirm(false);
     } catch {
-      // error handled by orchestrator
+      // handled
     } finally {
       setCancelling(false);
     }

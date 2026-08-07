@@ -8,13 +8,37 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json();
 }
 
-export async function createMission(userPrompt: string) {
+// Define the expected response shape for mission creation
+export interface CreateMissionResponse {
+  success: boolean;
+  mission: {
+    id: string;
+    name: string;
+    missionId: string;
+    merchant: string;
+    budget: number;
+    spent: number;
+    expiry: string;
+    trustScore: number;
+    status: string;
+    createdAt: number;
+    userPrompt?: string;
+    sessionKey: string;
+    category?: string;
+    policyId?: string;
+    walletAddress?: string;
+    contractTxHash?: string;
+    explorerUrl?: string;
+  };
+}
+
+export async function createMission(userPrompt: string): Promise<CreateMissionResponse> {
   const response = await fetch(`${API_BASE}/api/missions/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text: userPrompt }),
   });
-  return handleResponse(response);
+  return handleResponse<CreateMissionResponse>(response);
 }
 
 export async function executeMission(missionId: string) {
