@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard,
   Rocket,
@@ -15,6 +15,7 @@ import {
   KeyRound,
   PhoneCall,
   ChevronDown,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAegis, useOrchestrator } from '@/orchestrator';
 import { formatINR } from '@/utils/format';
@@ -84,7 +85,6 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
     return latestId;
   }, [selectedId, latestId, missions]);
 
-  // Prevent infinite loops
   const prevFocusedIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (focusedId !== prevFocusedIdRef.current) {
@@ -179,7 +179,7 @@ function MissionPocket({ mission, onClick }: { mission: Mission; onClick: () => 
 }
 
 // ---------------------------------------------------------------------------
-// Full detail card – with freeze overlay requiring key rotation each time
+// Full detail card – with cancel confirmation
 // ---------------------------------------------------------------------------
 function MissionDetail({
   mission,
@@ -198,12 +198,11 @@ function MissionDetail({
 }) {
   const [copied, setCopied] = useState(false);
   const [keysRotated, setKeysRotated] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
-  // Reset key rotation flag whenever a new freeze happens
   useEffect(() => {
-    if (mission.status === 'frozen') {
-      setKeysRotated(false);
-    }
+    if (mission.status === 'frozen') setKeysRotated(false);
   }, [mission.status]);
 
   const policy = useMemo(() => {
@@ -232,9 +231,7 @@ function MissionDetail({
 
   useEffect(() => {
     if (mission.status === 'executing') {
-      const interval = setInterval(() => {
-        setLocalTimer(prev => (prev > 0 ? prev - 1 : 0));
-      }, 1000);
+      const interval = setInterval(() => setLocalTimer(prev => (prev > 0 ? prev - 1 : 0)), 1000);
       return () => clearInterval(interval);
     }
     if (mission.status === 'completed') setLocalTimer(0);
@@ -265,7 +262,7 @@ function MissionDetail({
     minute: '2-digit',
   });
 
-  // Timer bar logic
+  // Time‑lock bar
   let displayTime = totalTime;
   let progress = 100;
   let timerStatusText = 'Awaiting execution clearance...';
@@ -316,17 +313,30 @@ function MissionDetail({
     };
   }
 
-  const verification = useMemo(() => {
-    return computeVerificationLevel(
-      mission.budget,
-      policy.verificationThresholds,
-      mission.riskScore
-    );
-  }, [mission.budget, mission.riskScore, policy]);
+  const verification = useMemo(
+    () => computeVerificationLevel(mission.budget, policy.verificationThresholds, mission.riskScore),
+    [mission.budget, mission.riskScore, policy]
+  );
 
   const handleRotateAndEnableUnfreeze = async () => {
     await onRotateKey();
     setKeysRotated(true);
+  };
+
+  const handleCancelClick = () => {
+    setShowCancelConfirm(true);
+  };
+
+  const handleCancelConfirm = async () => {
+    setCancelling(true);
+    try {
+      await onCancel();
+      setShowCancelConfirm(false);
+    } catch {
+      // error handled by orchestrator
+    } finally {
+      setCancelling(false);
+    }
   };
 
   return (
@@ -351,9 +361,7 @@ function MissionDetail({
               onClick={onUnfreeze}
               disabled={!keysRotated}
               className={`flex-1 flex justify-center items-center gap-2 rounded-xl bg-success/20 border border-success/40 px-4 py-3.5 text-[13px] font-bold transition-all ${
-                keysRotated
-                  ? 'text-success hover:bg-success/30'
-                  : 'text-ink-faint opacity-50 cursor-not-allowed'
+                keysRotated ? 'text-success hover:bg-success/30' : 'text-ink-faint opacity-50 cursor-not-allowed'
               }`}
             >
               <Snowflake className="h-4 w-4" /> Unfreeze
@@ -361,6 +369,59 @@ function MissionDetail({
           </div>
         </div>
       )}
+
+      {/* Cancel confirmation overlay */}
+      <AnimatePresence>
+        {showCancelConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-bg/80 backdrop-blur-sm rounded-xl"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 10 }}
+              className="w-full max-w-xs rounded-xl border border-error/40 bg-bg-card p-5 shadow-2xl"
+            >
+              <div className="flex items-center gap-2 text-error mb-3">
+                <AlertTriangle className="h-5 w-5" strokeWidth={2} />
+                <h4 className="text-sm font-bold">Cancel Mission</h4>
+              </div>
+              <p className="text-xs text-ink-dim mb-4">
+                Are you sure you want to cancel this mission? The budget will be refunded.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setShowCancelConfirm(false)}
+                  disabled={cancelling}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 text-ink-dim hover:bg-white/5 transition-colors"
+                >
+                  No
+                </button>
+                <button
+                  onClick={handleCancelConfirm}
+                  disabled={cancelling}
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg bg-error text-white hover:bg-error/90 transition-colors flex items-center gap-1.5"
+                >
+                  {cancelling ? (
+                    <>
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      Cancelling…
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-3 w-3" />
+                      Yes, Cancel
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Header */}
       <div className="flex items-center justify-between border-b border-gold/15 pb-5">
@@ -482,7 +543,6 @@ function MissionDetail({
         </div>
       </div>
 
-      {/* Time-lock bar */}
       <div
         className={`mt-5 rounded-2xl border-2 ${timerTheme.border} ${timerTheme.bg} p-5 shadow-lg relative overflow-hidden transition-colors duration-500`}
       >
@@ -522,7 +582,7 @@ function MissionDetail({
               <Rocket className="h-5 w-5" /> Execute
             </button>
             <button
-              onClick={onCancel}
+              onClick={handleCancelClick}
               className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-white/10 text-white py-4 text-[14px] font-bold hover:bg-white/5 transition-colors"
             >
               Cancel Mission
@@ -531,7 +591,7 @@ function MissionDetail({
         )}
         {isExecuting && !isFrozen && (
           <button
-            onClick={onCancel}
+            onClick={handleCancelClick}
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-error/90 text-white py-4 text-[14px] font-black uppercase tracking-wider transition-all hover:bg-error hover:scale-[1.01] hover:shadow-[0_0_30px_rgba(239,68,68,0.3)]"
           >
             <XCircle className="h-5 w-5" /> Abort Transaction
@@ -583,9 +643,7 @@ function StatusBadge({ status }: { status: string }) {
   };
   const c = config[status] || config.idle;
   return (
-    <div
-      className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${c.bg} ${c.border} ${c.text}`}
-    >
+    <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${c.bg} ${c.border} ${c.text}`}>
       {status.replace('_', ' ')}
     </div>
   );
