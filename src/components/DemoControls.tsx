@@ -42,7 +42,6 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
   const missionId = selectedMission?.id;
   const missionStatus = selectedMission?.status;
 
-  // Can the mission be attacked / cancelled? (non‑terminal)
   const canAttack = useMemo(() => {
     if (!selectedMission) return false;
     return !['completed', 'failed', 'nuked', 'cancelled'].includes(selectedMission.status);
@@ -51,7 +50,7 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
   const canFreeze = useMemo(() => canAttack && missionStatus !== 'frozen', [canAttack, missionStatus]);
   const canUnfreeze = missionStatus === 'frozen';
   const canNuke = canAttack;
-  const canCancel = canAttack; // cancel is allowed for any active mission
+  const canCancel = canAttack;
 
   // ============ Cancel confirmation state ============
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -69,13 +68,13 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
       await cancelMission(missionId);
       setShowCancelConfirm(false);
     } catch {
-      // error handled by orchestrator
+      // handled
     } finally {
       setCancelling(false);
     }
   };
 
-  // Nuke confirmation state
+  // ============ Nuke confirmation state ============
   const [showNukeConfirm, setShowNukeConfirm] = useState(false);
   const [nuking, setNuking] = useState(false);
 
@@ -97,7 +96,6 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
     }
   };
 
-  // Attack handlers – add realistic message to chat before execution
   const handleAttack = async (
     attackFn: (missionId?: string) => Promise<void>,
     message: string
@@ -188,8 +186,8 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
   ];
 
   const variantStyles = {
-    attack: 'border-error/20 bg-error/5 text-error/90 hover:border-error/40 hover:bg-error/10',
-    security: 'border-gold/20 bg-gold/5 text-gold hover:border-gold/40 hover:bg-gold/10',
+    attack: 'border-error/20 bg-error/5 text-error/90 hover:border-error/40 hover:bg-error/10 hover:shadow-[0_0_15px_rgba(239,68,68,0.15)]',
+    security: 'border-gold/20 bg-gold/5 text-gold hover:border-gold/40 hover:bg-gold/10 hover:shadow-gold-sm',
     danger: 'border-error/30 bg-error/10 text-error hover:border-error/60 hover:shadow-[0_0_20px_rgba(239,68,68,0.2)]',
     neutral: 'border-white/10 bg-white/[0.03] text-ink-dim hover:border-white/20 hover:text-white',
   };
@@ -278,7 +276,7 @@ export function DemoControls({ onAuditTrail }: { onAuditTrail: () => void }) {
         )}
       </AnimatePresence>
 
-      {/* Nuke confirmation overlay (unchanged) */}
+      {/* Nuke confirmation overlay */}
       <AnimatePresence>
         {showNukeConfirm && (
           <motion.div

@@ -82,6 +82,7 @@ function ShieldCard({ shield, index }: { shield: ShieldState; index: number }) {
       label: 'Idle',
       labelColor: 'text-ink-faint',
       dot: 'bg-ink-faint',
+      animate: false,
     },
     processing: {
       ring: 'border-gold/40',
@@ -91,6 +92,7 @@ function ShieldCard({ shield, index }: { shield: ShieldState; index: number }) {
       label: 'Processing',
       labelColor: 'text-gold',
       dot: 'bg-gold animate-pulse',
+      animate: true,
     },
     success: {
       ring: 'border-success/30',
@@ -100,6 +102,7 @@ function ShieldCard({ shield, index }: { shield: ShieldState; index: number }) {
       label: 'Active',
       labelColor: 'text-success',
       dot: 'bg-success',
+      animate: false,
     },
     failure: {
       ring: 'border-error/40',
@@ -109,6 +112,7 @@ function ShieldCard({ shield, index }: { shield: ShieldState; index: number }) {
       label: 'Breached',
       labelColor: 'text-error',
       dot: 'bg-error animate-pulse',
+      animate: true,
     },
   };
   const c = statusConfig[shield.status] || statusConfig.idle;
@@ -120,7 +124,7 @@ function ShieldCard({ shield, index }: { shield: ShieldState; index: number }) {
       transition={{ delay: index * 0.06, duration: 0.4 }}
       className={`relative overflow-hidden rounded-xl border bg-bg-card/50 p-3.5 transition-all ${c.ring} ${c.glow}`}
     >
-      {shield.status === 'processing' && (
+      {c.animate && (
         <motion.div
           className="absolute inset-0 bg-gradient-to-r from-transparent via-gold/5 to-transparent"
           animate={{ x: ['-100%', '100%'] }}

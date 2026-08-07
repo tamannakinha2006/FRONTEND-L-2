@@ -76,13 +76,11 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
 
   const selectedId = state.selectedMissionId;
 
-  // The latest mission is always the one with the greatest createdAt
   const latestId = useMemo(() => {
     if (missions.length === 0) return null;
     return missions.reduce((a, b) => (a.createdAt > b.createdAt ? a : b)).id;
   }, [missions]);
 
-  // Focused mission: if the user has explicitly selected one, use it; otherwise latest
   const focusedId = useMemo(() => {
     if (selectedId && missions.some(m => m.id === selectedId)) return selectedId;
     return latestId;
@@ -98,7 +96,6 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
     }
   }, [focusedId, selectedId, dispatch]);
 
-  // If the focused mission disappears (e.g., nuked), clear selection
   useEffect(() => {
     if (focusedId && !missions.some(m => m.id === focusedId)) {
       dispatch({ type: 'SELECT_MISSION', payload: null });
@@ -154,7 +151,7 @@ export function MissionWallet({ onViewPolicies }: { onViewPolicies: () => void }
 }
 
 // ---------------------------------------------------------------------------
-// Enhanced Pocket card with stack appearance
+// Enhanced Pocket card with subtle glow and stack effect
 // ---------------------------------------------------------------------------
 function MissionPocket({
   mission,
@@ -167,6 +164,7 @@ function MissionPocket({
   stackIndex: number;
   totalPockets: number;
 }) {
+  const isNew = Date.now() - mission.createdAt < 3000; // pulse if created within 3 seconds
   return (
     <motion.div
       layout
@@ -175,7 +173,9 @@ function MissionPocket({
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.2 }}
       onClick={onClick}
-      className="relative cursor-pointer rounded-xl border border-gold/15 bg-bg-secondary/60 backdrop-blur-xl px-4 py-2 flex items-center justify-between hover:bg-bg-secondary/80 transition-colors shadow-gold-sm"
+      className={`relative cursor-pointer rounded-xl border border-gold/15 bg-bg-secondary/60 backdrop-blur-xl px-4 py-2 flex items-center justify-between hover:bg-bg-secondary/80 transition-colors shadow-gold-sm ${
+        isNew ? 'animate-pulse border-gold/30' : ''
+      }`}
       style={{
         transform: `scale(${1 - stackIndex * 0.02})`,
         zIndex: totalPockets - stackIndex,
@@ -202,7 +202,7 @@ function MissionPocket({
 }
 
 // ---------------------------------------------------------------------------
-// Full detail card (expanded) – large, original design with cancel/nuke confirm
+// Full detail card – enhanced with glowing borders and bolder status
 // ---------------------------------------------------------------------------
 function MissionDetail({
   mission,
@@ -285,7 +285,7 @@ function MissionDetail({
     minute: '2-digit',
   });
 
-  // Time‑lock bar
+  // Time‑lock bar – enhanced glow
   let displayTime = totalTime;
   let progress = 100;
   let timerStatusText = 'Awaiting execution clearance...';
@@ -295,12 +295,14 @@ function MissionDetail({
     text: 'text-warning',
     fill: 'bg-warning',
     ping: true,
+    glow: '',
   };
 
   if (isExecuting && !isFrozen) {
     displayTime = localTimer;
     progress = (localTimer / totalTime) * 100;
     timerStatusText = 'Smart contract time-lock active...';
+    timerTheme.glow = 'shadow-[0_0_20px_rgba(245,158,11,0.3)]';
   } else if (isFrozen) {
     displayTime = localTimer;
     progress = (localTimer / totalTime) * 100;
@@ -311,6 +313,7 @@ function MissionDetail({
       text: 'text-error',
       fill: 'bg-error',
       ping: false,
+      glow: 'shadow-[0_0_25px_rgba(239,68,68,0.4)]',
     };
   } else if (isCompleted) {
     displayTime = 0;
@@ -322,6 +325,7 @@ function MissionDetail({
       text: 'text-success',
       fill: 'bg-success',
       ping: false,
+      glow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]',
     };
   } else if (isFailed) {
     displayTime = localTimer;
@@ -333,6 +337,7 @@ function MissionDetail({
       text: 'text-error',
       fill: 'bg-error',
       ping: false,
+      glow: 'shadow-[0_0_15px_rgba(239,68,68,0.2)]',
     };
   }
 
@@ -361,7 +366,7 @@ function MissionDetail({
   };
 
   return (
-    <div className="flex flex-col p-6 relative overflow-hidden bg-bg-secondary/40 rounded-xl">
+    <div className="flex flex-col p-6 relative overflow-hidden bg-bg-secondary/40 rounded-xl shadow-soft-lg">
       {isFrozen && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-bg/95 backdrop-blur-lg p-6 text-center border-2 border-error/50">
           <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-error/15 border-2 border-error/40 text-error mb-4 animate-pulse shadow-[0_0_40px_rgba(239,68,68,0.3)]">
@@ -565,7 +570,7 @@ function MissionDetail({
       </div>
 
       <div
-        className={`mt-5 rounded-2xl border-2 ${timerTheme.border} ${timerTheme.bg} p-5 shadow-lg relative overflow-hidden transition-colors duration-500`}
+        className={`mt-5 rounded-2xl border-2 ${timerTheme.border} ${timerTheme.bg} p-5 shadow-lg relative overflow-hidden transition-colors duration-500 ${timerTheme.glow}`}
       >
         <div className="flex items-end justify-between mb-3 relative z-10">
           <div className="flex flex-col gap-1">
@@ -638,7 +643,7 @@ function MissionDetail({
 }
 
 // ---------------------------------------------------------------------------
-// Helper components
+// Helper components (unchanged)
 // ---------------------------------------------------------------------------
 function Detail({ label, value }: { label: string; value: string }) {
   return (
