@@ -11,6 +11,7 @@ import {
   Copy,
   Clock,
   Eye,
+  Volume2,
 } from 'lucide-react';
 import { useAegis, useOrchestrator } from '@/orchestrator';
 
@@ -26,8 +27,50 @@ export function VerificationPrompt() {
   const [otpVisible, setOtpVisible] = useState(true);
 
   const otpTimerRef = useRef<number | null>(null);
-  const OTP_TIMEOUT = 20_000;
+  const OTP_TIMEOUT = 20_000; // 20 seconds
 
+  // ---------- Voice Alert for Level 2 (Phone) ----------
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const hasSpokenRef = useRef(false);
+
+  useEffect(() => {
+    if (level === 'phone' && active && !hasSpokenRef.current && missionId) {
+      const mission = state.missions.find(m => m.id === missionId);
+      const merchant = mission?.merchant || 'a pending mission';
+      const amount = mission?.budget ? `₹${mission.budget.toLocaleString()}` : 'a high value';
+      const text = `Attention. A transaction of ${amount} to ${merchant} requires your immediate review. This is an automated security alert.`;
+
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // stop any previous speech
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.9;      // slightly slower for clarity
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        utteranceRef.current = utterance;
+        window.speechSynthesis.speak(utterance);
+        hasSpokenRef.current = true;
+      }
+    }
+
+    // Cleanup: stop speaking when component unmounts or prompt changes
+    return () => {
+      if (utteranceRef.current && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [level, active, missionId, state.missions]);
+
+  // Reset the spoken flag when the prompt completely closes
+  useEffect(() => {
+    if (!active) {
+      hasSpokenRef.current = false;
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+    }
+  }, [active]);
+
+  // ---------- Existing logic (unchanged) ----------
   useEffect(() => {
     if (level === 'phone' && missionId) {
       const mission = state.missions.find(m => m.id === missionId);
@@ -141,7 +184,7 @@ export function VerificationPrompt() {
             {level === 'otp' && (
               <div className="space-y-4">
                 {otp && otpVisible && (
-                  <div className="relative rounded-xl border border-gold/30 bg-gold/5 p-4 text-center animate-pulse">
+                  <div className="relative rounded-xl border border-gold/30 bg-gold/5 p-4 text-center">
                     <div className="flex items-center justify-center gap-1.5 mb-2 px-2 py-1 rounded-lg bg-gold/10 border border-gold/20 text-[10px] font-medium text-soft-gold-text">
                       <Eye className="h-3 w-3" />
                       Judge‑only demo – OTP is printed on screen instead of being sent via email
@@ -186,9 +229,18 @@ export function VerificationPrompt() {
                   <div className="absolute inset-0 rounded-full border-2 border-success/30 animate-ping" />
                   <PhoneCall className="h-8 w-8 text-success" />
                 </div>
-                <p className="text-center text-[12px] font-medium text-success">Browser Call Sequence Initiated...</p>
+                <p className="text-center text-[12px] font-medium text-success">
+                  Browser Call Sequence Initiated...
+                </p>
+                <div className="flex items-center gap-2 text-[11px] text-ink-faint">
+                  <Volume2 className="h-4 w-4 text-success animate-pulse" />
+                  <span>Voice alert is playing on your speakers</span>
+                </div>
                 <div className="w-full pt-4">
-                  <button onClick={() => dispatch({ type: 'CLEAR_VERIFICATION' })} className="w-full rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-[13px] font-bold text-success hover:bg-success/20 transition-colors">
+                  <button
+                    onClick={() => dispatch({ type: 'CLEAR_VERIFICATION' })}
+                    className="w-full rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-[13px] font-bold text-success hover:bg-success/20 transition-colors"
+                  >
                     Acknowledge
                   </button>
                 </div>
